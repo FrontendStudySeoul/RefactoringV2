@@ -21,7 +21,6 @@
 ```tsx
 // invoices.json
 
-[
   {
     "customer": "BigCo",
     "performances": [
@@ -115,14 +114,64 @@ return thisAmout
     }
 ```
 
-이제 위 함
-### 궁금한점
-위 amountFor이라는 함수에서 play에서는 type만 쓰이고 pefr에서는 audience만 쓰이는데 이러면 나는 좀 더 쪼개서 함수를 만들것 같다. 그리고 추후에 perf나 play의 다른 property들로 값을 더해야한다면 함수를 하나 더 만든다. 왜 그렇게 생각했냐면 좀 더 함수의 인자를 쪼개야 해당 함수가 뭘 하는지 좀 더 직관적일거같다. <br>
-그리고 나는 항삼 함수를 추상화할때 ``const thisAmount = getThisAmount()``처럼 해당 변수의 값을 get하는 형식으로 이름을 만들었는데 해당 코드내에서만 쓰이면 괜찮겠지만 이를 유틸함수나 커스텀훅으로 분리할때는 어떻게 이름을 가져야할지?
+이제 이 함수는 분리됐으니 내부에 변수명도 수정해준다. 
+
+```tsx
+const amountFor = (performance,play) =>{
+//perf라는 변수는 축약어이기 때문에 performance로 수정
+ let result = 0 //이 공연 금액
+// thisAmount라는 값을 결과로 return 할거기때문에 result로 수정
+
+    switch (play.type) {
+      case 'tragedy': {
+        result = 40000
+        if (perf.audience > 30) thisAmount += 1000 * (performance.audience - 30)
+        break
+      }
+      case 'comedy': {
+        result = 30000
+        if (perf.audience > 20) thisAmount += 10000 + 500 * (performance.audience - 20)
+        result += 300 * performance.audience
+        break
+      }
+      default:
+        throw new Error(`알 수 없는 장르: ${play.type}`)
+return result
+    }
+```
+이렇게 이름을 바꾸는걸 굳이 하는 이유는 좋은 코드라면 하는 일이 명확히 드러나야하며, 이떄 변수 이름은 커다란 역할을 한다.
+<br> 추상화의 5할 이상은 좋은 변수명 짓기이다.<br>
+<img width="767" alt="image" src="https://github.com/FrontendStudySeoul/RefactoringV2/assets/103626175/0c3a1c8b-c1f2-4e88-8051-ca77395d01e2">
+<br>
+
+### play 변수 제거
+play라는 변수는 performance를 통해 얻기때문에 굳이 변수로 제공될 필요가 없다. 이런 변수들로인해서 로컬에 있는 값이 복잡해진다면 이런것부터 없애는게 리팩토링의 시작이라고한다.
+
+### 함수 복제하기
+하나의 함수에서 코드가 길어지고 하나의 함수에서 하는일이 많아진다면 해당함수에서 필요한값만을 리턴하도록 만드는 함수로 쪼개주는게 좋다.
+```tsx
+function volueCreditsFor(perf) {
+    let volumeCredits = 0
+    volumeCredits += Math.max(perf.audeince - 30, 0)
+    if ('comedy' === playFor(perf).type) {
+      volumeCredits += Math.floor(perf.audience / 5)
+      return volumeCredits
+    }
+```
+```tsx
+  volumeCredits += Math.max(perf.audience - 30, 0)
+    if (play.type === 'comedy') volumeCredits += Math.floor(perf.audience / 5)
+//리팩토링
+volumeCredits += volumeCreditsFor(perft)
+```
+
+### 전문용어로 변수명 사용하기
+위의 함수에서 format에 관련된 값을 함수로 만들때 어떤 이름으로 지어야할떄 고민된다면 전문용어를 사용하는게 좋다. 
+<br>
+개발뿐만 아니라 다른 분야에서도 전문 용어를 사용하는 이유는 한 단어로 많은 뜻을 전달하기 위해서이다.
+
 
 ### 커밋하기
 위의 과정으로 하나의 기능을 수정했으면 테스트까지 진행후 커밋한다.
-
-
 
 **리팩토링은 프로그램을 작은 단계로 나눠서 진행한다. 너무 큰 단위로 가져가게되면 디버깅하는데 시간이 오래 걸릴 수 있기때문에 최대한 작은 단계로 쪼개서 수시로 테스트를 확인하면서 진행한다.**
