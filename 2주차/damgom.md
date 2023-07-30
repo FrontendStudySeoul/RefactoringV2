@@ -57,20 +57,12 @@
   > cake.makeNoise(); // 'Meow!'
   > ```
   >
-  > #### 클래스
-  > - ES6에 클래스 문법이 추가되면서 간결하게 객체지향 프로그래밍을 할 수 있게 되었다.
-  > ``` js
-  > // Animal.js
-  > class Animal {
-  >
-  > }
-  > 
-  > export default Animal;
-  > ```
 
 
 
-### 오버라이딩
+### Overriding
+- 상속받은 메서드를 재정의
+   - 서브 클래스가 슈퍼클래스의 메서드를 덮어쓰는 것
 
 ``` js
 // 슈퍼 클래스
@@ -81,5 +73,23 @@ get amount() {
 // 서브 클래스
 get amount() {
  // 슈퍼클래스의 조건부 로직 중 서브 클래스에 해당하는 부분
+}
+```
+
+### Overloading
+- 같은 이름, 다른 매개변수를 가진 메서드가 여러개 존재하는 것
+- 자바스크립트에서는 불가능
+
+``` java
+void overload(){
+  System.out.println("매개변수 0개");
+}
+
+void overload(int i, int j){
+  System.out.println("매개변수 "+ i + " 그리고 " + j);
+}
+
+void overload(double d){
+  System.out.println("매개변수 " + d);
 }
 ```
