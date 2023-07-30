@@ -36,6 +36,7 @@
 <div></div>
 이제 statement에서 가지고 있던 데이터를 들고있는 store를 createStatmentData함수로 분리하고 내가 원하는 형식으로 기능을 추가한다.(책에서 말하는 text or HTML)
 <br>
+
 ```tsx
 function statement(invoice,plays){
     return renderPlainHTML(createStatementData(invoice,plays))
@@ -51,7 +52,11 @@ dom+= `<tag>고객명 : ${data.customer}</h1>`
 ...
 }
 ```
+
+  <br>
 위처럼 statement를 분리하면 text로 만들때도 render하는 함수만 바꿔주면 된다.
+<br>
+
 ```tsx
 function statement(invoice,plays){
     return renderPlainText(createStatementData(invoice,plays))
@@ -80,3 +85,4 @@ const sum = array.reduce((prev,current)=>return prev+current)
 <br>
 <img width="904" alt="image" src="https://github.com/FrontendStudySeoul/RefactoringV2/assets/103626175/14366bd6-1c4a-4e80-9eb6-f4e78f16085b">
 
+기능 변경에 용이한 구조로 리팩토링됨
