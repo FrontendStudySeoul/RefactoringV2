@@ -128,3 +128,246 @@ get rawData() {
 
 but 데이터 구조가 클수록 복제 비용이 커져서 성능이 느려진다. but 성능 비용을 감당할 수 있는 상황일 수도 있다. 걱정만 하지 않고 얼마나 영향을 주는지 실제로 측정을 해보자. 또 다른 문제는 **클라이언트가 원본을 수정한다고 착각할 수 있다는 것이다.** 이럴 때는 읽기전용 프락시를 제공하거나 복제본을 동결시켜서 데이터를 수정하려 할 때 에러를 던지도록 만들어라.(2번처럼)
 
+## 7.2 컬렉션 캡슐화하기
+### 배경
+필자는 가변 데이터를 모두 캡슐화하는 편이다. 그러면 데이터 구조가 언제 어떻게 수정되는지 파악하기 쉬워서 필요한 시점에 데이터 구조를 변경하기도 쉬워지기 때문이다. 객체 지향 개발자들은 캡슐화를 적극 권장하는데 컬렉션을 다룰 때는 곧잘 실수를 저지른다. 컬렉션 변수로의 접근을 캡슐화하면서 getter가 컬렉션 자체를 반환하도록 한다면, 그 컬렉션을 감싼 클래스가 눈치채지 못하는 상태에서 컬렉션의 원소들로 바뀌어버릴 수 있다.
+
+이 문제를 방지하기 위해 add, remove라는 이름의 컬렉션 변경자 메서드를 만든다. 항상 컬렉션을 소유한 클래스를 통해서만 원소를 변경하도록 하면 프로그램을 개선하면서 컬렉션 변경 방식도 원하는 대로 수정할 수 있다.
+
+but 컬렉션 getter가 원본 컬렉션을 반환하지 않게 만들어서 클라이언트가 실수로 바꿀 가능성을 차단하는 게 낫다.
+
+**내부 컬렉션을 직접 수정하지 못하게 컬렉션 값을 반환하지 않게 할 수 있다.** 컬렉션을 접근하려면 컬렉션이 소속된 클래스의 적절한 케서드를 반드시 거치게 하는 것이다. aCustomer.orders.size()를 aCustomer.numberOfOrder()로 바꾸는 것이다. 필자는 이 방식에 동의하지 않는다. 최신 언어는 다양한 컬렉션 클래스들을 표준화된 인터페이스로 제공하며, 컬렉션 파이프라인과 같은 패턴을 적용하여 다채롭게 조합할 수 있다. 표준 인터페이스 대신 전용 메서드들을 사용하게 하면 부가적인 코드가 상당히 늘어나며 컬렉션 연산들을 조합해 쓰기도 어려워진다.
+
+또 다른 방법은 **컬렉션을 읽기전용으로 제공할 수 있다.** 프락시가 내부 컬렉션을 읽는 연산은 그대로 전달하고, 쓰기는 예외 처리하여 모두 막는 것이다. 이터레이터나 열거형 객체를 기반으로 컬렉션을 조합하는 라이브러리들은 이터레이터에서 내부 컬렉션을 수정할 수 없게 한다.
+
+가장 흔한 방식은 컬렉션 getter를 제공하되 내부 컬렉션의 복제본을 반환하는 것이다. 컬렉션이 상당히 크다면 성능 문제가 발생할 수 있다. but 성능에 지장을 줄만큼 컬렉션이 큰 경우는 별로 없으니 성능에 대한 일반 규칙을 따르도록 하자.
+
+중요한 점은 **코드베이스에서 일관성을 주는 것이다.** 앞에 나온 방식 중에서 한 가지만 적용해서 컬렉션 접근 함수의 동작 방식을 통일해야 한다.
+
+### 절차
+1. 아직 컬렉션을 캡휼화하지 않았다년 7.1의 변수 캡슐화하기부터 한다.
+2. 컬렉션에 원소를 add/remove하는 함수를 추가한다.
+3. 정적 검사 수행
+4. 컬렉션을 참조하는 부분을 모두 찾는다. 컬렉션의 변경자를 호출하는 코드가 모두 앞에서 추가한 add/remove 함수를 호출하도록 수정한다. 하나씩 수정할 때마다 테스트
+5. 컬렉션 getter를 수정해서 원본 내용을 수정할 수 없는 읽기전용 프락시나 본제본을 반환하게 한다.
+6. 테스트
+
+### 예시
+```js
+// Person 클래스
+constructor(name) {
+  this._name = name;
+  this._courses = [];
+}
+get name() {return this._name;}
+get courses() {return this._courses;}
+set courses(aList) {this._courses = aList;}
+
+// Course 클래스
+constuctor(name, isAdvanced) {
+  this._name = name;
+  this._isAdvanced = [];
+}
+get name() {return this._name;}
+get isAdvanced() {return this._isAdvanced;}
+```
+
+```js
+numAdvancedCourses = aPerson.courses
+    .filter(c => c.isAdvanced)
+    .length
+```
+모든 필드가 접근자 메서드로 보호받고 있으니 이렇게만 해도 데이터를 제대로 캡슐화했다고 생각하기 쉽다. 하지만 허점이 있다. setter를 이용해 수업 컬렉션을 통째로 설정한 클라이언트는 누구든 이 컬렉션을 마음대로 수정할 수 있기 때문이다.
+```js
+const basicCouseNames = readBasicCourseNames(filename);
+aPerson.courses = basicCouseNames.map(name => new Cousre(name, false))
+```
+
+클라이언트 입장에서는 다음처럼 수업 목록은 직접 수정하는 것이 훨씬 편할 수 있다.
+```js
+for(const name of readBasicCourseNames(filename)) {
+  aPerson.courses.push(new Course(name, false));
+}
+```
+이런 식으로 목록을 갱신하면 Person 클래스가 더는 컬렉션을 제어할 수 없으니 캡슐화가 깨진다. 필드를 참조하는 과정만 캡슐화했을 뿐 필드에 담긴 내용은 캡슐화하지 않은 게 원인이다.
+
+2. 클라이언트가 수업을 하나씩 추가하고 제거하는 메서드를 Person에 추가
+```js
+addCourse(aCourse) [
+  this._courses.push(aCourse);
+]
+removeCousre(aCousre, fnIfAbsent = () => {throw new RangeError();}) {
+  const index = this._courses.indexOf(aCourse);
+  if(index === -1) fnIfAbsent();
+  else this._courses.splice(index, 1);
+}
+```
+4. 컬렉션의 변경자를 직접 호출하던 코드를 모두 찾아서 방금 추가한 메서드를 사용하도록 바꾼다.
+```js
+for(const name of readBasicCourseNames(filename)) {
+  aPerson.addCourse(new Course(name, false));
+}
+```
+
+2번처럼 개별 원소를 추가하고 제거하는 메서드를 제공하기 때문에 setter를 제거. setter를 제공해야 할 특별한 이유가 있다면 인수로 받은 컬렉션의 복제본을 필드에 저장
+```js
+set courses(aList) {this._courses = aList.slice();}
+```
+아무런 목록을 변경할 수 없도록 복제본을 제공하면 된다.
+```js
+get courses() {return this._courses.slice() }
+```
+
+컬렉션에 대해서는 어느 정도 강박증을 갖고 불필요한 복제본을 만드는 편이, 예상치 못한 수정이 촉발한 오류를 디버깅하는 것보다 낫다. 컬렉션 관리를 책임지는 클래스라면 항상 복제본을 제공해야 한다.
+
+## 7.3 기본형을 객체로 바꾸기
+### 배경
+개발이 진행되면서 간단했던 정보들이 더 이상 간단하지 않게 변한다. 금세 중복 코드가 늘어나서 사용할 때마다 드는 노력도 늘어나게 된다.
+
+필자는 단순한 출력 이상의 기능이 필요해지는 순간 그 데이터를 표현하는 전용 클래스를 정의하는 편이다. 시작은 기본형 데이터를 단순히 감싼 것과 큰 차이가 없을 것이라 효과가 미미하지만 나중에 특별한 동작이 필요해지면 클래스에 추가하면 되니 프로그램이 커질수록 점점 유용한 도구가 된다. 코드베이스에 미치는 효과는 놀라울 만큼 크다.
+
+### 절차
+1. 7.2.1 할 것
+2. 단순한 값 클래스를 만든다. 생성자는 기존 값을 인수로 받아서 저장하고, 이 값을 반환하는 getter를 추가
+3. 정적 검사 수행
+4. 값 클래스의 인스턴스를 새로 만들어서 필드에 저장하도록 getter를 수정. 이미 있다면 필드의 타입을 적절히 변경
+5. 새로 만든 클래스의 getter를 호출한 결과를 반환하도록 getter를 수정
+6. 테스트
+7. 함수 이름을 바꾸면 원본 접근자의 동작을 더 잘 드러낼 수 있는지 검토
+
+### 예시
+레코드 구조에서 데이터를 읽어 들이는 단순한 주문 클래스. 클래스의 우선 순위 속성은 값을 간단히 문자열 표현함.
+
+```js
+constructor(data) {
+  this.priority = data.priority;
+  // ...
+}
+
+highPriorityCount = orders.filter(o => 'high' === o.priority || 'rush' === o.priority).length;
+```
+1. 데이터 값을 다루기 전에 항상 변수부터 캡슐화한다.
+```js
+get priority() {return this._priority;}
+set priority(aString) {this._priority = aString;}
+```
+우선순위 속성을 초기화하는 생성자에서 방금 정의한 setter를 사용할 수 있다. 필드를 자가 캡슐화하면 필드 이름을 바꿔도 클라이언트 코드는 유지할 수 있다.
+
+2. 우선순위 속성을 표현하는 값 클래스 Priority를 만든다. 표현할 값을 받는 생성자와 그 값을 문자열로 반환하는 변환 함수로 구성된다.ㄴ
+```js
+class Priority {
+  constructor(value) {this._value = value;}
+  toString() {return this._value;}
+}
+```
+필자는 이 상황에서는 개인적으로 getter보다는 변환 함수(toString)을 선호한다. 클라이언트 입장에서 보면 속성 자체를 받은 게 아니고 해당 속성을 문자열로 표현한 값을 요청한 게 되기 때문
+4. 새로 만든 클래스 사용하도록 접근자 수정
+7. Order클래스의 함수 이름 바꿔주기
+```js
+get priorityString() {return this._priority.toString();}
+set priority(aString) {this._priority = new Priority(aString);}
+
+highPriorityCount = orders.filter(o => 'high' === o.priorityString || 'rush' === o.priorityString).length;
+```
+
+## 7.4 임시 변수를 질의 함수로 바꾸기
+### 배경
+함수 안에서 어떤 코드의 결과값을 뒤에서 다시 참조할 목적으로 임시 변수를 쓰기도 한다. 임시 변수를 사용하면 값을 계산하는 코드가 반복되는 걸 줄이고 값의 의미를 설명할 수도 있어서 유용하다. 그런데 아예 함수로 만들어 사용하는 편이 나을 때가 많다.
+
+긴 함수의 한 부분을 별도 함수로 추출하고자 할 때 먼저 변수들을 각각의 함수로 만들면 일이 수월해진다. 추출한 함수에 변수를 따로 전달할 필요가 없어지기 때문이다. 이 덕분에 추출한 함수와 원래 함수의 경계가 더 분명해지기도 하는데, 부자연스러운 의존 관계나 부수효과를 찾고 제거하는 데 도움이 된다.
+
+변수 대신 함수로 만들어두면 비슷한 계산을 수행하는 다른 함수에서도 사용할 수 있어 코드 중복이 줄어든다.
+
+이번 리팩터링은 클래스 안에서 적용할 때 효과가 가장 크다. 클래스는 추출할 메서드들에 공유 컨텍스트를 제공하기 때문이다. 클래스 바깥의 최상위 함수로 추출하면 매개변수가 너무 많아져서 함수를 사용하는 장점이 줄어든다. 중첩 함수를 사용하면 이런 문제는 없지만 관련 함수들과 로직을 널리 공유하는 데 한계가 있다.
+
+임시 변수를 질의 함수로 바꾼다고 다 좋아지는 건 아니다. 변수는 값을 한 번만 게산하고, 그 뒤로는 읽기만 해야 한다. 변수에 값을 한 번 대입한 뒤 더 복잡한 코드 덩어리에서 여러 차례 다시 대입하는 경우는 모두 질의 함수로 추출해야 한다. 또한, 이 계산 로직은 변수가 다음번에 사용될 때 수행해도 똑같은 결과를 내야 한다. 그래서 "옛날 주소"처럼 스냅샷 용도로 쓰이는 변수에는 이 리팩터링을 적용하면 안된다.
+
+### 절차
+1. 변수가 사용되기 전에 값이 확실히 결정되는지, 변수를 사용할 때마다 계산 로직이 매번 다른 결과를 내지는 않는지 확인한다.
+2. 읽기전용으로 만들 수 있는 변수는 읽기전용으로 만든다.
+3. 테스트
+4. 변수 대입문을 함수로 추출
+5. 테스트
+6. 변수 인라인하기로 임시 변수 제거
+
+### 예시
+```js
+constructor(quantity, item) {
+  this._quantity = quantity;
+  this._item = item;
+}
+
+get price() {
+  var basePrice = this._quantity * this._item.price;
+  var discountFactor = 0.98;
+
+  if(basePrice > 1000) discountFactor -= 0.03;
+  return basePrice * discountFactor;
+}
+```
+
+2. basePrice을 const로 만들고 3. 테스트
+4. 대입문의 우변을 getter로 추출
+```js
+get basePrice() {
+  return this._quantity * this._item.price;
+}
+get price() {
+  const basePrice = this.basePrice;
+  var discountFactor = 0.98;
+  if(basePrice > 1000) discountFactor -= 0.03;
+  return basePrice * discountFactor;
+}
+```
+5. 테스트한 다음 6. 변수를 인라인
+
+discountFactor변수로 같은 순서로 처리
+
+## 7.5 클래스 추출하기
+### 배경
+클래스는 반드시 명확하게 추상화하고 소수의 주어진 역할만 처리해야 한다는 가이드라인을 들어봤을 것이다. but 실무에서는 몇 가지 연산을 추가하고 데이터도 보강하면서 클래스가 점점 비대해지곤 한다. 기존 클래스를 굳이 쪼갤 필요까지는 없다고 생각하여 새로운 역할을 덧씌우기 쉬운데, 역할이 갈수록 많아지고 새끼를 치면서 클래스가 굉장히 복잡해진다.
+
+메서드와 데이터가 너무 많은 클래스는 적절히 분리하는 것이 좋다. 특히 일부 데이터와 메서드를 묶을 수 있다면 어서 분리하라는 신호다. 함께 변경되는 일이 많거나 서로 의존하는 데이터들도 분리한다. 특정 데이터나 메서드 일부를 제거하면 어떤 일이 일어나는지 자문해보면 판단에 도움이 된다. 제거해도 다른 필드나 메서드들이 논리적으로 문제가 없다면 분리할 수 있다는 뜻이다.
+
+### 절차
+1. 클래스의 역할을 분리할 방법을 정한다.
+2. 분리될 역할을 담당할 클래스를 새로 만든다;.
+3. 원래 클래스의 생성자에서 새로운 클래스의 인스턴스를 생성하여 필드에 저장해둔다.
+4. 분리될 역할에 필요한 필드들을 새 클래스로 옮긴다. 하나씩 옮길 때마다 테스트
+5. 메서드들도 새 클래스로 옮긴다. 이때 저수준 메서드, 즉 다른 메서드를 호출하기보다는 호출을 당하는 일이 많은 메서드부터 옮긴다. 하나씩 옮길 때마다 테스트
+6. 양쪽 클래스의 인터페이스를 살펴보면서 불필요한 메서드를 제거하고, 이름도 새로운 환경에 맞게 바꾼다.
+7. 새 클래스를 외부로 노출할지 정한다. 노출하려거든 새 클래스에 참조를 값으로 바꾸기를 적용할지 고민해본다.ㄴ
+
+### 예시
+```js
+get name() {return this._name;}
+set name(arg) {this._name = arg;}
+get telephoneNumber() {return `(${this.officeAreaCode}) ${this.officeNumber}`;}
+get officeAreaCode() {return this._officeAreaCode;}
+set officeAreaCode(arg) {this._officeAreaCode = arg;}
+get officeNumber() {return this._officeNumber;}
+set officeNumber(arg) {this._officeNumber = arg;}
+```
+1. 전화번호 관련 동작을 별도 클래스로 뽑아보기
+2. 먼저 빈 전화번호를 표현하는 TelephoneNumber클래스 정의
+3. Person 클래스의 인스턴스를 생성할 때 전화번호 인스턴스도 함께 생성해 저장
+```js
+// Person
+constructor() {
+  this._telephoneNumber = new TelephoneNumber();
+}
+
+// TelephoneNumber
+get officeAreaCode() {return this._officeAreaCode;}
+set officeAreaCode(arg) {this._officeAreaCode = arg;}
+get officeNumber() {return this._officeNumber;}
+set officeNumber(arg) {this._officeNumber = arg;}
+
+// Person
+get officeAreaCode() {return this._telephoneNumber.officeAreaCode;}
+set officeAreaCode(arg) {this._telephoneNumber.officeAreaCode = arg;}
+...
+```
+6. 정리하기. 새로 만든 클래스는 순수한 전화번호를 뜻하므로 사무실이란 단어를 쓸 이유가 없다. 마찬가지로 전화번호라는 뜻도 메서드 이름에서 다시 강조할 이유가 없다.
+- officeAreaCode -> areaCode
+- officeNumber -> number
