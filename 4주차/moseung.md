@@ -171,3 +171,56 @@ const fucntionA = ()=>{
   }
 ```
 
+## 8-4 문장을 호출한 곳으로 옮기기
+기존에 사용하던 기능이 일부 호출에서는 다르게 동작하도록 바뀌어야하면 우리는 다시 코드를 작성해야한다. 이떄 개발자는 달라진 동작을 함수에서 꺼내 해당 호출자로 옮긴다.
+```jsx
+ function renderPerson(outstream,person){
+    ...
+    emitPhotoData(outstream,person.phto)
+
+    
+  }
+
+  function listRecentPhotos(outstream,photos){
+    photos.filter().forEach(p=>{
+      ...
+      emitPhotoData(outstream,p)
+    })
+  }
+
+   function emitPhotoData (outstream,photo)
+{ 
+  outstream.write(`${photo,title}`)
+  outstream.write(`${photo,name}`)
+  outstream.write(`${photo,date}`)
+}  
+```
+위 코드에서 renderPerson에서만 outstream.write(`${photo,date}`)를 하지 않아야하는 상황이 생긴다.
+```jsx
+  function emitPhotoData (outstream,photo)
+{ 
+  zzstream(outstream,photo)
+  outstream.write(`${photo,date}`)
+}
+
+fucntion zzstream(outstream,photo){
+outstream.write(`${photo,title}`)
+  outstream.write(`${photo,name}`)
+}
+```
+위처럼 중복되는 부분만 따로 함수로 뺴준다.
+```jsx
+function renderPerson(outstream,person){
+    ...
+    zzstream(outstream,photo)
+  }
+
+function listRecentPhotos(outstream,photos){
+    photos.filter().forEach(p=>{
+      ...
+      zzstream(outstream,photo)
+      outstream.write(`${photo,date}`)
+    })
+  }
+```
+그 이후 기존 함수에서 원래 하려던 작업을 진행한다.
