@@ -224,3 +224,189 @@ function listRecentPhotos(outstream,photos){
   }
 ```
 그 이후 기존 함수에서 원래 하려던 작업을 진행한다.
+
+## 8-5 인라인 코드를 함수 호출로 바꾸기
+함수의 이름이 코드의 동작 방식보다는 목적을 말해주기 때문에 함수를 활용하면 코드를 이해하기 쉬워진다. 그래서 동작을 똑같이 하는 인라인 코드가 있다면 라이브러리나 언어에서 제공하는 함수를 사용한다.
+```tsx
+let isBoolean = false
+for(const s of state){
+if(s==="MA") isBooelan = true
+}
+///////////
+isBoolean = state.includes("MA)
+```
+
+## 8-6 문장 슬라이드하기 
+관련된 코드들이 가까이 모여 있다면 이해하기가 더 쉽다. 예를들어 하나의 데이터 구조를 이용하는 문장들은 한데 모여 있어야 좋다. 가장 흔한 사례는 변수를 선언하고 사용할때이며 모든 변수선언을 함수 첫머리에 모아두는 사람도 있지만 이 책의 필자는 변수를 처음 사용할떄 선언하는 스타일을 선호한다고한다. 왜냐하면 관련 코드끼리 모으는 작업이 다른 리팩터링의 준비 단계로 자주 행해지기 떄문이다.
+<br>
+프론트엔드에서 흔히 컴포넌트 상단에 hook을 몰아넣고 그 뒤에 함수를 몰아넣는 방식의 코드 스타일이 꽤 많다.
+```tsx
+  const navigate = useNavigate()
+  const [isOpenCalendar, setIsOpenCalendar] = useState(false)
+  const [keyword, setKeyword] = useState('')
+  const [isClickedInput, setIsClickedInput] = useState(false)
+  const setSearchedKeyword = useSetRecoilState(searchedKeyword)
+
+  useDebounce(
+    () => {
+      if (keyword.length > 0) {
+        navigate('/myrecord/search')
+        setSearchedKeyword({ keyword })
+      }
+    },
+    500,
+    [keyword]
+  )
+
+  함수들...
+
+return (
+html
+)
+```
+물론 이런 방식이 마치 Class형태처럼 상태, 함수, 렌더링 부분으로 나눠서 읽기 쉽다고 생각할 수 있지만 많약에 상태값들이 많아지거나 사이에 함수들이 많아지거나 한다면 오히려 가독성을 해칠때가 있다.
+그래서 나는 위에서 알려준 방식처럼 변수 혹은 상태, 함수로 문장슬라이드를 자주 한다.
+```tsx
+const [minutes, setMinutes] = useState(mm);
+  const [seconds, setSeconds] = useState(ss);
+  const [timer, setTimer] = useState('');
+  //다른 상태들
+
+  //다른 이펙트들
+  useEffect(() => {
+    const countdown = setInterval(() => {
+      if (seconds > 0) {
+        setSeconds(seconds - 1);
+      }
+      if (seconds === 0) {
+        if (minutes === 0) {
+          clearInterval(countdown);
+        } else {
+          setMinutes(minutes - 1);
+          setSeconds(59);
+        }
+      }
+    }, 1000);
+    setTimer(`${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`);
+    return () => clearInterval(countdown);
+  }, [minutes, seconds]);
+//다른 함수들
+```
+원래는 위처럼 여러 상태와 함수가 혼용돼있어서 몰랐지만 용도가 맞는 코드들끼리 묶음으로써 데이터의 흐름대로 볼 수 있게됐고 마침 해당 로직을 다른 페이지에서도 필요했기에 useTimer라는 hook으로 리팩토링 할 수 있었다.
+```tsx
+import { useState, useEffect } from 'react';
+
+interface TimerProps {
+  mm: number;
+  ss: number;
+}
+
+const useTimer = ({ mm, ss }: TimerProps) => {
+  const [minutes, setMinutes] = useState(mm);
+  const [seconds, setSeconds] = useState(ss);
+  const [timer, setTimer] = useState('');
+
+  useEffect(() => {
+    const countdown = setInterval(() => {
+      if (seconds > 0) {
+        setSeconds(seconds - 1);
+      }
+      if (seconds === 0) {
+        if (minutes === 0) {
+          clearInterval(countdown);
+        } else {
+          setMinutes(minutes - 1);
+          setSeconds(59);
+        }
+      }
+    }, 1000);
+    setTimer(`${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`);
+    return () => clearInterval(countdown);
+  }, [minutes, seconds]);
+
+  return timer;
+};
+
+export default useTimer;
+
+```
+
+## 8.7 반복문 쪼개기
+종종 반복문 하나에서 두 가지 일을 수행하는 모습을 보게 된다.하지만 이렇게 하면 반복문을 수정해야 할 때마다 두 가지 일 모두를 잘 이해하고 진행해야 한다. 그래서 서로 연관없는 값이 한 반복문 내에서 다뤄지고 있다면 반복문을 분리해야 한다.
+```tsx
+  let youngest = people[0]?people[0].age:Infinity;
+  let totalSalary = 0;
+  for (const p of people){
+    if(p.age<youngest) youngest = p.age
+    totalSalary+=p.salary
+  }
+
+  return `최연소 :${youngest} 총 급여 :  ${totalSalary}`
+```
+위 반복무에서 totalSalary와 youngest는 서로 연관이 없는 변수기 떄문에 함수화 해준다. 그리고 함수로 바꿔줄 수 있는 부분을 바꿔준다.
+
+```tsx
+const youngest = getYoungest(people)
+  const totalSalary = getTotalSalary(people)
+
+  const getYoungest  = (people)=>{
+    let youngest = people[0]?people[0].age:Infinity;
+    for (const p of people){
+      if(p.age<youngest) youngest = p.age
+    }
+    return youngest
+  }
+
+  const getTotalSalary  = (people)=>{
+    for (const p of people){
+      totalSalary+=p.salary
+    }
+    return youngest.reduce((total,p)=>total+p.salary,0)
+  }
+```
+
+## 8.8 반복문을 파이프라인으로 바꾸기
+반복문을 사용하는 코드들을 연산을 이용해서 컬렉션을 다시 연산을 사용한 코드로 작성하면 이해하기 더 쉽다.
+```tsx
+ function acquireData(input){
+    const lines = input.split("\n")
+    let firstLine =true;
+    const result = [];
+    for (const line of lines){
+      if(firstLine){
+        firstLine=false;
+        continue
+      }
+      if(line.trim()==="")continue;
+      const record = line.split(",")
+      if(record[1].trim() ==="india"){
+        result.push({city:fields[0].trim(),phone: fields[2].trim()})
+      }
+    }
+  }
+
+```
+어떤 값을 string으로 바꿔서 인도에 자리한 사무실을 찾아 도시명과 전화번호를 반환하는 반복문이 있다.
+  ```tsx
+function acquireData(input){
+    const lines = input.split("\n")
+    return lines
+            .slice(1)
+            .filter(line => line.trim( !== ""))
+            .map(line => line.split(","))
+            .filter(fields => fields[1].trim()==="india")
+            .map(fields => ({city:fields[0].trim(),phone: fields[2].trim()}))
+  }
+```
+
+## 8.9 죽은 코드 제거하기
+항상 쓰지 않는 코드는 제거해야된다. 왜냐하면 우리에게는 버전 관리 시스템인 git이 있기때문에 다시 해당 상태로 돌리면 되기 때문이다.<br>
+그리고 한때 쓰지 않는 코드는 주석으로 처리하는게 유행했다고 한다.
+### 쓰지 않는 코드는 그냥 지우기
+위에서 설명한것처럼 쓰지 않는 코드를 주석으로 처리하는것이 좋지 않다고 생각한다.
+<br>
+왜냐하면 위에서 설명한것처럼 지웠다가 다시 git으로 되살릴 수 있기 때문이기도 하지만 사실 주석으로 처리하면 그 맥락을 주석처리한 개발자 밖에 알 수 없다.
+<br>
+회사에서도 일어난 일인데 어떤 코드들이 주석돼있었고 그 주석 위에 주석과 상당히 유사한 코드가 남아있었다. 나는 그 주석에 설명이 없었기 때문에 어떤 의도로 만든 주석인지 알 수 없었고 수정하기에 어려움을 느꼈다.
+<br>
+책에서 있는것처럼 주석조차도 안하는게 좋고 하더라도 그 주석을 단 이유라도 적어두는것이 협업을 위해 필수라고 생각한다.
