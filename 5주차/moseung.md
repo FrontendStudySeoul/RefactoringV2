@@ -116,5 +116,22 @@ function regularDeliveryDate(anOrder){
 ## 11.4 객체 통째로 넘기기
 하나의 레코드에서 값 두어 개를 가져와 인수로 넘기는 코드를 보면, 필자는 레코드를 통쨰로 넘긴다고한다.
 <br>
-레코드를 통쨰로 넘기면 변화에 대응하기 쉽다 왜냐하면 어떤 함수가 어떤 레코드에 있는 더 많은 데이터를 쓰게 됐을때 코드 수정없이 사용이 가능하기 떄문이다.
+레코드를 통쨰로 넘기면 변화에 대응하기 쉽다 왜냐하면 어떤 함수가 어떤 레코드에 있는 더 많은 데이터를 쓰게 됐을때 코드 수정없이 사용이 가능하기 떄문이다. 하지만 특정 레코드를 넘기긴 하나 레코드 자체에 의존하지 않고 싶을때엔 그렇게 리팩토링 하지 않는다.
 <br>
+```tsx
+interface ButtonPropsType
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  property?: 'solid' | 'primary' | 'default' | 'danger'
+  small?: boolean
+  active?: boolean
+  normal?: boolean
+  disabled?: boolean
+  loading?: boolean
+  type?: 'button' | 'submit' | 'reset' | undefined
+  children?: React.ReactElement | string
+}
+```
+자주 사용하는 컴포넌트를 만들때 그 컴포넌트가 자바스크립트 근본에 비롯된 html들로 만드는 경우가 있다.(button,input)
+이 때 위처럼 나는 해당 html태그의 interface를 상속받아서 값을 사용하는데 이렇게 하면 기존 button안에 닮겨있는 모든 property를 사용 가능하다.
+
+## 11.5 매개변수를 질의 함수로 넘기기
