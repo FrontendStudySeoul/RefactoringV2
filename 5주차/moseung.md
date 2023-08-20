@@ -135,3 +135,115 @@ interface ButtonPropsType
 이 때 위처럼 나는 해당 html태그의 interface를 상속받아서 값을 사용하는데 이렇게 하면 기존 button안에 닮겨있는 모든 property를 사용 가능하다.
 
 ## 11.5 매개변수를 질의 함수로 넘기기
+매개변수 목록은 함수의 변동 요인을 모아놓은 곳이다. 이떄 매개변수를 다시 질의함수로 바꿔주는것이 필요할 떄가 있다.
+```tsx
+get finalPrice(){
+  const basePrice = this.quantity * this.itemPrice;
+  let discountLevel ;
+  if(this.quantity>100)discountLevel=2
+  discountLevel=1
+  return this.discountedPrice(basePrice,discountLevel)
+}
+```
+discountLevel에 따라 discountedPrice를 최종값으로 리턴하는 함수가 있는데 여기서 discountLevel을 분리할만하다.
+```tsx
+get discountLevel(){
+return this.quantity>100?2:1;
+}
+get finalPrice(){
+  const basePrice = this.quantity * this.itemPrice;
+  return this.discountedPrice(basePrice)
+}
+```
+
+## 11.6 질의 함수를 매개변수로 바꾸기
+
+## 11.7 세터 제거하기
+클래스내에 세터함수가 있다는것은 필드값이 바뀐다는 징조이다.하지만 세터가 있으면 안되는 고유한 id값같은 경우에는 세터로 값을 설정해주는것이 아니라 생성자로 값을 만들어준다.
+```tsx
+
+get name() return this._name
+set name(arg) this._name = arg
+get id() return this._id
+set id(arg) this._id = arg
+
+const person = new Person();
+person.name = "모승"
+person.id = getId("모승")
+```
+위와같이 id는 다시 바껴선 안되는 값이기에 set이 아니라 생성자로 값을 정한다.
+
+```tsx
+constructor(id){
+this._id = id
+}
+
+get name() return this._name
+set name(arg) this._name = arg
+get id() return this._id
+set id(arg) this._id = arg
+```
+
+## 11.8 생성자를 팩터리 함수로 바꾸기
+생성자로 클래스를 만드는것을 함수로 한번더 감싸주는것이 좋다.
+```tsx
+const leadEngineer = new Employee(document.leadEngineer,"E")
+
+/// 리팩토링
+
+function createEngineer(name){
+return new Employee(name,"E")
+}
+```
+이처럼 리팩토링 하면 추후에 Enginner를 만드는 내부 로직이 바뀌더라도 혹은 다른 함수로 대체되더라도 변경하기에 용이하다.<br>
+### 내 생각
+위와 유사한 방법으로 전역관리 라이브러리를 다룰때 유용할 것 같다.예를들어 어떤 프로젝트에서 전역관리툴을 Redux로 사용하고 실제로 코드 불러오는 부분도 Redux를 불러와서 사용했다. 하지만 이 부분을 팩터리 함수로 바꿔준다면 추후에 Redux가 아닌 Recoil이나 Zustand같은 다른 상태관리 라이브러리를 사용하더라도 **팩터리 함수 내에 코드만 바꿔주면** 실행부에는 전혀 지장이 없을것이다
+
+## 11.9 함수를 명령으로 바꾸기
+함수는 프로그래밍의 기본적인 블록 중 하나이다. 그런데 사용하는 함수를 그 함수만을 위한 객체 안으로 캡슐화하면 유용해지는 경우가 있고 그 객체를 **명령** 이라고 한다.
+```tsx
+
+  function score(candidate, medicalExam, scoringGuide){
+    let result = 0
+    let healthLevel = 0
+    let highMedicalRiskFlag = false;
+    
+   if(healthLevel){
+//로직
+}
+  if(highMedicalRiskFlag){
+//로직
+}
+    return result
+  }
+```
+이제 이 코드를 명령 객체로 바꾼다.
+```tsx
+ function score(candidate, medicalExam, scoringGuide){
+    return new Scorer(candidate, medicalExam, scoringGuide).execute()
+  }
+
+class Scorer {
+
+constructor(candidate, medicalExam, scoringGuide){
+this.candidate =_candidate;
+this.medicalExam =_medicalExam;
+  this.scoringGuide =_scoringGuide;
+}
+
+execute(){
+this._result=0
+this.getHealthLevel()
+this.getHighMedicalRiskFlag()
+return this._result
+}
+
+getHealthLevel(){
+//로직
+}
+
+getHighMedicalRiskFlag(){
+//로직
+}
+}
+```
