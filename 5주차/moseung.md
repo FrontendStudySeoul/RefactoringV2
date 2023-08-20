@@ -157,6 +157,7 @@ get finalPrice(){
 ```
 
 ## 11.6 질의 함수를 매개변수로 바꾸기
+만약 질의 함수가 전역 변수를 사용한다거나 값이 거북한 상황에서는 질의 함수를 다시 매개변수로 바꿔준다.
 
 ## 11.7 세터 제거하기
 클래스내에 세터함수가 있다는것은 필드값이 바뀐다는 징조이다.하지만 세터가 있으면 안되는 고유한 id값같은 경우에는 세터로 값을 설정해주는것이 아니라 생성자로 값을 만들어준다.
@@ -200,7 +201,7 @@ return new Employee(name,"E")
 위와 유사한 방법으로 전역관리 라이브러리를 다룰때 유용할 것 같다.예를들어 어떤 프로젝트에서 전역관리툴을 Redux로 사용하고 실제로 코드 불러오는 부분도 Redux를 불러와서 사용했다. 하지만 이 부분을 팩터리 함수로 바꿔준다면 추후에 Redux가 아닌 Recoil이나 Zustand같은 다른 상태관리 라이브러리를 사용하더라도 **팩터리 함수 내에 코드만 바꿔주면** 실행부에는 전혀 지장이 없을것이다
 
 ## 11.9 함수를 명령으로 바꾸기
-함수는 프로그래밍의 기본적인 블록 중 하나이다. 그런데 사용하는 함수를 그 함수만을 위한 객체 안으로 캡슐화하면 유용해지는 경우가 있고 그 객체를 **명령** 이라고 한다.
+함수는 프로그래밍의 기본적인 블록 중 하나이다. 그런데 사용하는 함수를 그 함수만을 위한 객체 안으로 캡슐화하면 유용해지는 경우가 있고 그 객체를 **명령** 이라고 한다. 이렇게 사용하는 함수가 굉장히 복잡한 경우라면 명령으로 바꿔주는것이 용이하다.
 ```tsx
 
   function score(candidate, medicalExam, scoringGuide){
@@ -247,3 +248,65 @@ getHighMedicalRiskFlag(){
 }
 }
 ```
+
+## 11.10 명령을 질의 함수로 바꾸기
+9장이라는 다르게 명령이 있고 이 함수가 복잡하지 않다면 다시 질의 함수로 바꿔주는것이 용이하다.
+
+## 11.11 수정된 값으로 반환하기
+데이터가 어떻게 수정되는지를 추적하는 일은 코드에서 이해하기 가정 어려운 부분 중 하나이다. 그래서 데이터가 수정된다면 그 사실을 명확히 알려주어서 어느 함수가 무슨 일을 하는지 쉽게 하는일이 중요하다.
+<br>
+그래서 가장 좋은 방법은 변수를 갱신하는 함수라면 수정된 값을 반환하여 호출자가 그 값을 변수로 갖고있는 것이다.
+```tsx
+ let totalAscent = 0;
+  let totalTime = 0;
+  calculateTotalAscent()
+  calculateTotalTime()
+
+  function calculateTotalAscent(){
+    for(let i = 0;i<points.length<i++){
+      totalAscent+= a>0?1:0
+    }
+  }
+```
+위와 같은 함수가 있다
+```tsx
+ const totalAscent = calculateTotalAscent();
+  let totalTime = 0;
+  calculateTotalTime()
+
+  function calculateTotalAscent(){
+let totalAscent;
+    for(let i = 0;i<points.length<i++){
+      totalTime+= a>0?1:0
+    }
+return totalAscent
+  }
+```
+
+totalAscent를 수정된 값으로 반환함으로써 데이터가 어디서 처리되는지 해당 함수에서 명확히 확인이 가능해졌다.
+
+## 11.12 오류 코드를 예외로 바꾸기
+만약 오류 코드를 사용했을떄 복잡한 상황을 예외를 사용하면 그런일이 없게 해준다.
+```tsx
+function localShippingRules(country){
+  const data = countryData.shippingRules[country]
+  if(data) return new ShippingRules(data)
+  else return -23
+ }
+```
+이제 위와 같이 -23을 리턴하는것이 아니라 예외상황을 던져준다.
+```tsx
+class ErrorBoundary(){
+//에러 핸들링 로직
+}
+
+function localShippingRules(country){
+  const data = countryData.shippingRules[country]
+  if(data) return new ShippingRules(data)
+  else return new ErrorBoundary(-23)
+ }
+
+```
+
+## 11.13 예외를 사전확인으로 바꾸기
+예외를 던지는 경우를 사전에 있는 함수로 체크가 가능할경우 사전확인후 값을 컨트롤한다.
